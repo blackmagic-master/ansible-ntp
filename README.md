@@ -1,1 +1,1 @@
-# ansible-ntp
+# Simple NTP service with Ansible
