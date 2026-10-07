@@ -32,6 +32,23 @@
       - dest: "{{destination_cidr}}"
         gateway_id: "{{igw.gateway_id}}"
   register: route_table
+  notify: 
+    - Create a security group
+
+- name: Create a security group
+  amazon.aws.ec2_security_group:
+    name: "{{project_name}}-sg"
+    description: "Security group for {{project_name}}"
+    vpc_id: "{{vpc.vpc.id}}"
+    rules:
+      - proto: "{{destination_protocol}}"
+        ports:
+          - "{{destination_port}}"
+        cidr_ip: "{{destination_ip}}"
+        rule_desc: allow all on port {{destination_port}}
+  register: security_group
+  notify:
+    - Create key pair
 
 - name: Create key pair
   ec2_key:
@@ -39,8 +56,27 @@
     region: "{{region}}"
     state: present
   register: keypair
+  notify: 
+    - Save private key to file
 
 - name: Save private key to file
   copy:
     content: "{{keypair.key.private_key}}"
     dest: "./{{key_name}}.pem"
+  notify:
+    - Create an EC2 instance
+
+- name: Create an EC2 instance
+  amazon.aws.ec2_instance:
+    name: "{{project_name}}-instance"
+    key_name: "{{key_name}}"
+    vpc_subnet_id: "{{subnet.subnet.id}}"
+    instance_type: "{{instance_type}}"
+    security_group: "{{security_group.group_id}}"
+    network_interfaces:
+      - assign_public_ip: true
+    image_id: "{{ami}}"
+    wait: true
+    count: 1
+    tags:
+      Name: "{{project_name}}-instance"

@@ -10,5 +10,17 @@ vpc_cidr: 10.10.0.0/16
 # Subnet configuration
 subnet_cidr: 10.10.1.0/24
 
+# Internet gateway configuration
+destination_cidr: 0.0.0.0/0
+
+# Security group configuration
+destination_port: 80
+destination_ip: 0.0.0.0/0
+destination_protocol: tcp
+
 # Key pair configuration
 key_name: ntp_key
+
+# Instance configuration
+instance_type: t3.micro
+ami: ami-0b6d9d3d33ba97d99

@@ -9,7 +9,7 @@
     tags:
       module: ec2_vpc_net
       this: works
-    tenancy: dedicated
+    tenancy: default
   register: vpc
   notify:
     - Create a subnet
