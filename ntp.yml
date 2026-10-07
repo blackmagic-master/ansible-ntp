@@ -1,0 +1,5 @@
+- hosts: localhost
+  roles:
+    - ntp_role
+  gather_facts: False
+  become: False

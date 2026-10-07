@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for ntp_role
+
+# VPC configuration
+project_name: ntp-service
+region: us-east-1
+vpc_cidr: 10.10.0.0/16
+
+# Subnet configuration
+subnet_cidr: 10.10.1.0/24
+
+# Key pair configuration
+key_name: ntp_key

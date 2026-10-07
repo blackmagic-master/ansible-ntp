@@ -1,0 +1,46 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for ntp_role
+- name: Create a subnet
+  amazon.aws.ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{vpc.vpc.id}}"
+    cidr: "{{subnet_cidr}}"
+    tags:
+      Name: "{{project_name}}-subnet"
+  register: subnet
+  notify: 
+    - Create an Internet gateway
+
+- name: Create an Internet gateway
+  amazon.aws.ec2_vpc_igw:
+    vpc_id: "{{vpc.vpc.id}}"
+    state: present
+  register: igw
+  notify:
+    - Set up a route table
+
+- name: Set up a route table
+  amazon.aws.ec2_vpc_route_table:
+    vpc_id: "{{vpc.vpc.id}}"
+    region: "{{region}}"
+    tags:
+      Name: "{{project_name}}-rt"
+    subnets:
+      - "{{subnet.subnet.id}}"
+    routes:
+      - dest: "{{destination_cidr}}"
+        gateway_id: "{{igw.gateway_id}}"
+  register: route_table
+
+- name: Create key pair
+  ec2_key:
+    name: "{{key_name}}"
+    region: "{{region}}"
+    state: present
+  register: keypair
+
+- name: Save private key to file
+  copy:
+    content: "{{keypair.key.private_key}}"
+    dest: "./{{key_name}}.pem"
