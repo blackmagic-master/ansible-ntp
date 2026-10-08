@@ -25,3 +25,7 @@ key_name: ntp_key
 instance_type: t3.micro
 ami: ami-0b6d9d3d33ba97d99
 ec2_user: ubuntu
+
+# NTP configuration
+zone: us
+ntp_sources_dir: /etc/chrony/sources.d

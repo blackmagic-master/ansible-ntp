@@ -110,11 +110,47 @@
   ansible.builtin.wait_for:
     timeout: 60
 
+- name: Get NTP server list
+  ansible.builtin.shell: "curl -fsSL https://www.ntppool.org/zone/{{zone}} | grep server | grep org | head -3 | awk '{print $2}'"
+  delegate_to: "{{project_name}}-instance"
+  register: ntp_servers
+  changed_when: false
+
+- name: Format NTP server list
+  ansible.builtin.shell: "printf '%s\\n' {{ ntp_servers.stdout_lines | map('quote') | join(' ') }} | awk 'NF {print \"pool \" $0 \" iburst maxsources 1 nts prefer\"}'"
+  delegate_to: "{{project_name}}-instance"
+  register: formatted_ntp_servers
+  changed_when: false
+
 - name: Install a NTP package
   ansible.builtin.apt:
-    name: ntp
+    name: chrony
     state: present
     update_cache: true
   become: true
+  when: ec2.instances is defined
+  delegate_to: "{{project_name}}-instance"
+
+- name: Upload the first configuration file
+  ansible.builtin.template:
+    src: ubuntu-ntp-pools.sources.j2
+    dest: "{{ntp_sources_dir}}/ubuntu-ntp-pools.sources"
+  become: true
+  when: ec2.instances is defined
+  delegate_to: "{{project_name}}-instance"
+
+- name: Upload the second configuration file
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+  become: true
+  when: ec2.instances is defined
+  delegate_to: "{{project_name}}-instance"
+
+- name: Start service
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
   when: ec2.instances is defined
   delegate_to: "{{project_name}}-instance"
