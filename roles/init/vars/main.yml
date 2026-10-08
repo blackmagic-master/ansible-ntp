@@ -14,7 +14,7 @@ subnet_cidr: 10.10.1.0/24
 destination_cidr: 0.0.0.0/0
 
 # Security group configuration
-destination_port: 80
+destination_port: 22
 destination_ip: 0.0.0.0/0
 destination_protocol: tcp
 
@@ -24,3 +24,4 @@ key_name: ntp_key
 # Instance configuration
 instance_type: t3.micro
 ami: ami-0b6d9d3d33ba97d99
+ec2_user: ubuntu

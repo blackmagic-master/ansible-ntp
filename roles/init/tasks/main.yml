@@ -1,24 +1,32 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# handlers file for ntp_role
+# tasks file for ntp_role
+- name: Create a VPC
+  amazon.aws.ec2_vpc_net:
+    name: "{{project_name}}-vpc"
+    cidr_block: "{{vpc_cidr}}"
+    region: "{{region}}"
+    tags:
+      module: ec2_vpc_net
+      this: works
+    tenancy: default
+  register: vpc
+
 - name: Create a subnet
   amazon.aws.ec2_vpc_subnet:
     state: present
     vpc_id: "{{vpc.vpc.id}}"
     cidr: "{{subnet_cidr}}"
+    az: "{{region}}a"
     tags:
       Name: "{{project_name}}-subnet"
   register: subnet
-  notify: 
-    - Create an Internet gateway
 
 - name: Create an Internet gateway
   amazon.aws.ec2_vpc_igw:
     vpc_id: "{{vpc.vpc.id}}"
     state: present
   register: igw
-  notify:
-    - Set up a route table
 
 - name: Set up a route table
   amazon.aws.ec2_vpc_route_table:
@@ -32,8 +40,6 @@
       - dest: "{{destination_cidr}}"
         gateway_id: "{{igw.gateway_id}}"
   register: route_table
-  notify: 
-    - Create a security group
 
 - name: Create a security group
   amazon.aws.ec2_security_group:
@@ -47,8 +53,6 @@
         cidr_ip: "{{destination_ip}}"
         rule_desc: allow all on port {{destination_port}}
   register: security_group
-  notify:
-    - Create key pair
 
 - name: Create key pair
   ec2_key:
@@ -56,15 +60,16 @@
     region: "{{region}}"
     state: present
   register: keypair
-  notify: 
-    - Save private key to file
 
 - name: Save private key to file
   copy:
     content: "{{keypair.key.private_key}}"
     dest: "./{{key_name}}.pem"
-  notify:
-    - Create an EC2 instance
+
+- name: Fix private key permissions
+  file:
+    path: "./{{key_name}}.pem"
+    mode: '0600'
 
 - name: Create an EC2 instance
   amazon.aws.ec2_instance:
@@ -78,5 +83,38 @@
     image_id: "{{ami}}"
     wait: true
     count: 1
+    placement:
+      availability_zone: "{{region}}a"
     tags:
       Name: "{{project_name}}-instance"
+  register: ec2
+
+- name: Add an instance to the inventory
+  add_host:
+    name: "{{project_name}}-instance"
+    groups: launched
+    ansible_user: "{{ec2_user}}"
+    ansible_ssh_private_key_file: "./{{key_name}}.pem"
+    ansible_host: "{{ec2.instances[0].public_ip_address}}"
+  when: ec2.instances is defined
+
+- name: Wait for SSH to become available
+  wait_for:
+    host: "{{ec2.instances[0].public_ip_address}}"
+    port: "{{destination_port}}"
+    delay: 10
+    timeout: 300
+  when: ec2.instances is defined
+
+- name: Wait for the instance
+  ansible.builtin.wait_for:
+    timeout: 60
+
+- name: Install a NTP package
+  ansible.builtin.apt:
+    name: ntp
+    state: present
+    update_cache: true
+  become: true
+  when: ec2.instances is defined
+  delegate_to: "{{project_name}}-instance"
